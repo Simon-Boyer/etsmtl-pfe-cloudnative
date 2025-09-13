@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  name: cnpg-system
+  namespace: argocd
+spec:
+  destination:
+    namespace: cnpg-system
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    repoURL: 'https://github.com/Simon-Boyer/etsmtl-pfe-cloudnative.git'
+    path: k8s-manifests/base/cnpg
+    targetRevision: HEAD
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

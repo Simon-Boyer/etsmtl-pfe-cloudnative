@@ -1,0 +1,17 @@
+namespace: metallb-system
+
+resources:
+  - https://github.com/metallb/metallb//config/native?ref=v0.15.2
+
+patches:
+  # add pod security labels to ns
+  - patch: |-
+      - op: add
+        path: /metadata/labels
+        value:
+          pod-security.kubernetes.io/enforce: privileged
+          pod-security.kubernetes.io/audit: privileged
+          pod-security.kubernetes.io/warn: privileged
+    target:
+      kind: Namespace
+      name: metallb-system
