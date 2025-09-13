@@ -1,0 +1,306 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy
+  labels:
+    app.kubernetes.io/name: alloy
+data:
+  config.alloy: |-
+    livedebugging {
+      enabled = true
+    }
+
+    logging {
+    	level  = "warn"
+    	format = "json"
+    }
+
+    discovery.process "all" {
+      join = discovery.kubernetes.pods.targets
+      refresh_interval = "60s"
+      discover_config {
+        cwd = true
+        exe = true
+        commandline = true
+        username = true
+        uid = true
+        cgroup_path = true
+        container_id = true
+      }
+    }
+
+    discovery.kubelet "pods" {
+      url  = string.format("https://%s:10250", sys.env("NODE_IP"))
+      bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      // this is a local node, so we can skip TLS verification
+      tls_config {
+        insecure_skip_verify = true
+      }
+    }
+    
+    discovery.kubernetes "pods" {
+    	role = "pod"
+      selectors {
+        field = "spec.nodeName=" + sys.env("HOSTNAME")
+        role = "pod"
+      }
+    }
+
+    discovery.relabel "pod_logs" {
+      targets = discovery.kubelet.pods.targets
+      rule {
+        action = "labelmap"
+        regex  = "__meta_kubernetes_pod_label_(.+)"
+      }
+    }
+
+    discovery.relabel "all_targets_with_address" {
+      targets = array.concat(discovery.kubernetes.pods.targets, discovery.kubernetes.nodes.targets, discovery.kubernetes.services.targets, discovery.kubernetes.endpointslices.targets, discovery.kubernetes.ingresses.targets, discovery.process.all.targets)
+
+      rule {
+        source_labels = ["__meta_kubernetes_service_name"]
+        regex         = ".+"
+        target_label  = "source"
+        replacement   = "services"
+        action        = "replace"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_endpointslice_name"]
+        regex         = ".+"
+        target_label  = "source"
+        replacement   = "endpointslices"
+        action        = "replace"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        regex         = ".+"
+        target_label  = "source"
+        replacement   = "kubelet_pods"
+        action        = "replace"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_ingress_name"]
+        regex         = ".+"
+        target_label  = "source"
+        replacement   = "ingresses"
+        action        = "replace"
+      }
+
+      rule {
+        source_labels = ["__address__"]
+        regex        = ".+"
+        action       = "keep"
+      }
+      rule {
+        action = "labelmap"
+        regex  = "__meta_kubernetes_pod_label_(.+)"
+      }
+      rule {
+        action = "labelmap"
+        regex  = "__meta_kubernetes_service_label_(.+)"
+      }
+      rule {
+        action = "labelmap"
+        regex  = "__meta_kubernetes_ingress_label_(.+)"
+      }
+      rule {
+        action = "labelmap"
+        regex  = "__meta_kubernetes_endpointslice_label_(.+)"
+      }
+      rule {
+        action = "labeldrop"
+        regex  = "pod_template_hash|controller_revision_hash|checksum_.*|pod_uid|instance_id|job"
+      }
+    }
+
+    discovery.relabel "pod_ebpf" {
+      targets = discovery.kubernetes.pods.targets
+      rule {
+        action = "drop"
+        regex = "Succeeded|Failed"
+        source_labels = ["__meta_kubernetes_pod_phase"]
+      }
+      rule {
+        action = "replace"
+        regex = "(.*)@(.*)"
+        replacement = "ebpf/${1}/${2}"
+        separator = "@"
+        source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_container_name"]
+        target_label = "service_name"
+      }
+      rule {
+        action = "labelmap"
+        regex = "__meta_kubernetes_pod_label_(.+)"
+      }
+      rule {
+        action = "replace"
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label = "namespace"
+      }
+      rule {
+        action = "replace"
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label = "pod"
+      }
+      rule {
+        action = "replace"
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        target_label = "node"
+      }
+      rule {
+        action = "replace"
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label = "container"
+      }
+    }
+    
+    discovery.kubernetes "nodes" {
+    	role = "node"
+    }
+    
+    discovery.kubernetes "services" {
+    	role = "service"
+    }
+    
+    discovery.kubernetes "endpointslices" {
+    	role = "endpointslice"
+    }
+    
+    discovery.kubernetes "ingresses" {
+    	role = "ingress"
+    }
+
+    loki.write "loki" {
+      endpoint {
+        url = "http://loki:3100/loki/api/v1/push"
+      }
+    }
+
+    loki.source.kubernetes "pods" {
+      targets    = discovery.relabel.pod_logs.output
+      forward_to = [loki.process.add_replay_label.receiver]
+    }
+
+    loki.process "add_replay_label" {
+    stage.drop {
+      older_than = "1h"
+      drop_counter_reason = "line_too_old"
+    }
+      forward_to = [loki.write.loki.receiver]
+    }
+
+    loki.source.kubernetes_events "cluster" {
+      forward_to = [loki.write.loki.receiver]
+    }
+
+    loki.source.podlogs "default" {
+      forward_to = [loki.write.loki.receiver]
+    }
+
+    loki.source.syslog "local" {
+      listener {
+        address  = "0.0.0.0:51893"
+        labels   = { component = "loki.source.syslog", protocol = "tcp" }
+      }
+
+      listener {
+        address  = "0.0.0.0:51898"
+        protocol = "udp"
+        labels   = { component = "loki.source.syslog", protocol = "udp"}
+      }
+
+      forward_to = [loki.write.loki.receiver]
+    }
+
+    prometheus.exporter.statsd "statsd" {}
+    prometheus.exporter.self "self" {}
+
+    prometheus.remote_write "prometheus" {
+      wal {
+        max_keepalive_time = "30m"
+        min_keepalive_time = "15m"
+        truncate_frequency = "45m"
+      }
+      endpoint {
+        url = "http://prometheus-server/api/v1/write"
+      }
+    }
+
+    prometheus.remote_write "mimir" {
+      wal {
+        max_keepalive_time = "30m"
+        min_keepalive_time = "15m"
+        truncate_frequency = "45m"
+      }
+      endpoint {
+        url = "http://mimir/api/v1/push"
+      }
+    }
+
+    prometheus.scrape "default" {
+      targets    = discovery.relabel.all_targets_with_address.output
+      forward_to = [prometheus.remote_write.prometheus.receiver, prometheus.remote_write.mimir.receiver]
+      extra_metrics = true
+    }
+
+    // Enable only if Pyroscope is deployed
+    // make sure endpoint /debug/pprof for scraping
+    // Otherwise this will be very noisy
+    // pyroscope.scrape "default" {
+    //   targets    = discovery.kubernetes.pods.targets
+    //   forward_to = [pyroscope.write.pyroscope.receiver]
+    // }
+
+    pyroscope.write "pyroscope" {
+      endpoint {
+        url = "http://pyroscope:4040"
+      }
+    }
+
+    pyroscope.ebpf "pods" {
+      targets = discovery.relabel.pod_ebpf.output
+      forward_to = [pyroscope.write.pyroscope.receiver]
+    }
+
+    otelcol.exporter.otlp "tempo" {
+      client {
+        endpoint = "tempo:4317"
+        tls {
+          insecure             = true
+          insecure_skip_verify = true
+        }
+      }
+    }
+
+    otelcol.processor.discovery "default" {
+      targets = array.concat(discovery.kubelet.pods.targets, discovery.kubernetes.nodes.targets)
+
+      output {
+        traces = [otelcol.exporter.otlp.tempo.input]
+      }
+    }
+
+    // OTelcol receiver for traces and metrics
+    otelcol.receiver.otlp "beyla" {
+      grpc {}
+      http {}
+
+      output {
+        metrics = [otelcol.processor.batch.beyla.input]
+        traces = [otelcol.processor.batch.beyla.input]
+      }
+    }
+
+    otelcol.processor.batch "beyla" {
+      output {
+        metrics = [otelcol.exporter.prometheus.beyla.input]
+        traces  = [otelcol.exporter.otlp.tempo.input]
+      }
+    }
+
+    otelcol.exporter.prometheus "beyla" {
+        forward_to = [prometheus.remote_write.prometheus.receiver, prometheus.remote_write.mimir.receiver]
+    }

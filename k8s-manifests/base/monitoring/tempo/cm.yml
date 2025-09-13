@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tempo
+  labels:
+    app.kubernetes.io/name: tempo
+data:
+  tempo.yaml: |
+    target: all
+    multitenancy_enabled: false
+    max_bytes_per_trace: 1000000
+    usage_report:
+      reporting_enabled: false
+    compactor:
+      compaction:
+        block_retention: 24h
+        compacted_block_retention: 30m
+        compaction_cycle: 30m
+        compaction_window: 1h
+    memberlist:
+      bind_addr:
+        - '::'
+      abort_if_cluster_join_fails: false
+    metrics_generator:
+      processor:
+        local_blocks:
+          filter_server_spans: true
+          flush_to_storage: true
+        host_info:
+          host_identifiers:
+            - k8s.node.name
+            - host.id
+          metric_name: traces_host_info
+        service_graphs:
+          enable_client_server_prefix: true
+          enable_virtual_node_label: true
+          enable_messaging_system_latency_histogram: true
+        span_metrics:
+          enable_target_info: true
+      traces_storage:
+        path: /var/tempo/generator/traces
+      storage:
+        path: /var/tempo/generator/wal
+        remote_write:
+          - url: http://prometheus-server/api/v1/write
+            send_exemplars: true
+            name: prometheus
+          - url: http://mimir/api/v1/push
+            send_exemplars: true
+            name: mimir
+    distributor:
+      max_attribute_bytes: 512
+      receivers:
+        jaeger:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:14250
+            thrift_binary:
+              endpoint: 0.0.0.0:6832
+            thrift_compact:
+              endpoint: 0.0.0.0:6831
+            thrift_http:
+              endpoint: 0.0.0.0:14268
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+    server:
+      log_level: warn
+      log_format: json
+      grpc_listen_address: '0.0.0.0'
+      grpc_listen_port: 9095
+      http_listen_address: '0.0.0.0'
+      http_listen_port: 3100
+    storage:
+      trace:
+        backend: local
+        block:
+          version: vParquet4
+        local:
+          path: /var/tempo/traces
+        wal:
+          search_encoding: snappy
+          path: /var/tempo/wal
+    querier:
+      max_concurrent_queries: 20
+      frontend_worker:
+        frontend_address: 0.0.0.0:9095
+    query_frontend: {}
+    overrides:
+      defaults:
+        metrics_generator:
+          processors: [service-graphs, span-metrics, local-blocks]
+          generate_native_histograms: both
+      user_configurable_overrides:
+        api:
+          check_for_conflicting_runtime_overrides: true

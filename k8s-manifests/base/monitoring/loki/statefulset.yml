@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: loki
+  labels:
+    app.kubernetes.io/name: loki
+spec:
+  revisionHistoryLimit: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loki
+  serviceName: loki-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: loki
+      annotations:
+        prometheus.io/port: http-metrics
+        prometheus.io/scrape: "true"
+        filter.by.port.name: "true"
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsGroup: 10001
+        runAsUser: 10001
+      containers:
+        - name: loki
+          image: docker.io/grafana/loki:3.5.3
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-config.file=/etc/loki/loki.yaml"
+          env:
+            - name: GOMAXPROCS
+              valueFrom:
+                resourceFieldRef:
+                  divisor: '1'
+                  resource: limits.cpu
+            - name: GOMEMLIMIT
+              valueFrom:
+                resourceFieldRef:
+                  divisor: '1'
+                  resource: limits.memory
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/loki"
+            - name: storage
+              mountPath: "/data"
+              subPath: data
+              readOnly: false
+            - name: storage
+              mountPath: "/wal"
+              readOnly: false
+              subPath: wal
+          ports:
+            - name: http-metrics
+              containerPort: 3100
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 100m
+              memory: 768Mi
+            requests:
+              cpu: 50m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 45
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 45
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: config
+          configMap:
+            name: loki
+            defaultMode: 0755
+        - name: storage
+          emptyDir:
+            sizeLimit: "2Gi"

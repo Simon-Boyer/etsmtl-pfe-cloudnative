@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pyroscope
+  labels:
+    app.kubernetes.io/name: pyroscope
+spec:
+  ports:
+  - name: http
+    port: 4040
+    targetPort: http
+  - name: grpc
+    port: 9095
+    targetPort: grpc
+  - name: memberlist
+    port: 7946
+    targetPort: memberlist
+  selector:
+    app.kubernetes.io/name: pyroscope

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: true
+metadata:
+  name: alloy
+  labels:
+    app.kubernetes.io/name: alloy

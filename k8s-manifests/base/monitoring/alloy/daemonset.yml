@@ -1,0 +1,111 @@
+# Source: alloy/templates/controllers/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy
+  labels:
+    app.kubernetes.io/name: alloy
+spec:
+  revisionHistoryLimit: 1
+  minReadySeconds: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alloy
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: alloy
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "12345"
+        filter.by.port.name: "true"
+      labels:
+        app.kubernetes.io/name: alloy
+    spec:
+      serviceAccountName: alloy
+      enableServiceLinks: false
+      containers:
+        - name: alloy
+          image: docker.io/grafana/alloy:v1.10.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/tmp/alloy
+            - --server.http.listen-addr=$(POD_IP):12345
+            - --server.http.ui-path-prefix=/
+            - --stability.level=public-preview
+            - --feature.community-components.enabled
+            - --cluster.enabled=true
+            - --cluster.name=$(HOSTNAME)
+            - --cluster.wait-for-size=1
+          env:
+            - name: ALLOY_DEPLOY_MODE
+              value: "helm"
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: GOMAXPROCS
+              valueFrom:
+                resourceFieldRef:
+                  divisor: '1'
+                  resource: limits.cpu
+            - name: GOMEMLIMIT
+              valueFrom:
+                resourceFieldRef:
+                  divisor: '1'
+                  resource: limits.memory
+          ports:
+            - name: metrics
+              containerPort: 12345
+              protocol: TCP
+            - name: otlp-grpc
+              containerPort: 4317
+              protocol: TCP
+            - name: otlp-http
+              containerPort: 4318
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 512Mi
+            limits:
+              cpu: 100m
+              memory: 896Mi
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 12345
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+          securityContext:
+            privileged: true
+            readOnlyRootFilesystem: true
+            runAsUser: 0
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+            - name: tmp
+              mountPath: /tmp/alloy
+      dnsPolicy: ClusterFirst
+      volumes:
+        - name: config
+          configMap:
+            name: alloy
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
