@@ -1,0 +1,80 @@
+name: Reusable workflow to build and push docker container to github container registry
+
+on:
+  workflow_call:
+    inputs:
+      container-name:
+        required: true
+        type: string
+      context:
+        required: false
+        type: string
+        default: '.'
+      file:
+        required: false
+        type: string
+        default: 'Dockerfile'
+      branch:
+        type: string
+        default: 'main'
+
+env:
+  REGISTRY: ghcr.io/stolos-cloud
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repo
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ inputs.container-name }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=raw,value=${{ inputs.branch }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+        
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.file }}
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ inputs.container-name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ inputs.container-name }}:buildcache,mode=max,oci-mediatypes=true,compression=zstd,compression-level=5
+          provenance: true
+          sbom: true
+
+      - uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: ghcr.io/stolos-cloud/${{ inputs.container-name }}:latest
+          sarif-file: scout-report.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: scout-report.sarif

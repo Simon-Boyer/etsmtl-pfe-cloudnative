@@ -9,4 +9,4 @@ resources:
 - grafana/
 - alloy/
 - pyroscope/
-- beyla/
+- obi/

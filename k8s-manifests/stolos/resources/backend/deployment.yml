@@ -1,0 +1,69 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stolos-backend
+  labels:
+    app: stolos-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: stolos-backend
+  template:
+    metadata:
+      labels:
+        app: stolos-backend
+    spec:
+      containers:
+      - name: backend
+        image: ghcr.io/stolos-cloud/stolos-backend:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: PORT
+          value: "8080"
+        - name: DB_HOST
+          value: postgresql-stolos-rw
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: stolos
+        - name: DB_NAME
+          value: stolos
+        - name: DB_SSL_MODE
+          value: disable
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-stolos-app
+              key: password
+        envFrom:
+        - secretRef:
+            name: stolos-backend-secret
+        volumeMounts:
+        - name: gitops-workspace
+          mountPath: /root/gitops-workspace
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: gitops-workspace
+        emptyDir: {}

@@ -1,4 +1,4 @@
-# Stolos Platform Backend
+# Stolos Portal Backend
 
 ## Setup
 
@@ -74,7 +74,7 @@ curl -X PUT http://localhost:8080/api/v1/gcp/service-account \
         project_id: $project_id,
         region: $region, 
         service_account_json: $service_account_json
-      }')"
+      }')"+
 
 # Create terraform bucket:
 curl -X POST http://localhost:8080/api/v1/gcp/bucket -d '{

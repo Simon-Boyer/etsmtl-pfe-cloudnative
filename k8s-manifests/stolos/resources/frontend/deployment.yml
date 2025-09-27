@@ -1,0 +1,33 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stolos-frontend
+  labels:
+    app: stolos-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: stolos-frontend
+  template:
+    metadata:
+      labels:
+        app: stolos-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: ghcr.io/stolos-cloud/stolos-frontend:latest
+        ports:
+        - containerPort: 80
+          name: http
+        env:
+        - name: VITE_API_BASE_URL
+          value: https://stolos.cloud/api/v1
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

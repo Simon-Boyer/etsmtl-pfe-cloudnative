@@ -1,0 +1,50 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stolos-frontend
+  labels:
+    app: stolos-frontend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: stolos-frontend
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: stolos
+spec:
+  routes:
+    - conditions:
+        - prefix: /api/v1
+      services:
+        - name: stolos-backend
+          port: 8080
+    - conditions:
+        - prefix: /
+      services:
+        - name: stolos-frontend
+          port: 80
+  virtualhost:
+    fqdn: stolos.cloud
+    tls:
+      minimumProtocolVersion: '1.3'
+      secretName: stolos-ingress-tls
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: stolos-tls
+spec:
+  secretName: stolos-ingress-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: stolos.cloud
+  dnsNames: [stolos.cloud]
