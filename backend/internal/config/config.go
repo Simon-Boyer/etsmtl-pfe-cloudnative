@@ -9,11 +9,11 @@ import (
 )
 
 type Config struct {
-	Database    DatabaseConfig `mapstructure:"database"`
-	GitOps      GitOpsConfig   `mapstructure:"gitops"`
-	GCP         GCPConfig      `mapstructure:"gcp"`
-	GitHub      GitHubConfig   `mapstructure:"github"`
-	JWT         JWTConfig      `mapstructure:"jwt"`
+	Database DatabaseConfig `mapstructure:"database"`
+	GitOps   GitOpsConfig   `mapstructure:"gitops"`
+	GCP      GCPConfig      `mapstructure:"gcp"`
+	GitHub   GitHubConfig   `mapstructure:"github"`
+	JWT      JWTConfig      `mapstructure:"jwt"`
 }
 
 type DatabaseConfig struct {
@@ -42,9 +42,9 @@ type GitHubConfig struct {
 }
 
 type GCPConfig struct {
-	ProjectID            string `mapstructure:"project_id"`
-	Region               string `mapstructure:"region"`
-	ServiceAccountJSON   string `mapstructure:"service_account_json"`
+	ProjectID          string `mapstructure:"project_id"`
+	Region             string `mapstructure:"region"`
+	ServiceAccountJSON string `mapstructure:"service_account_json"`
 }
 
 type JWTConfig struct {
@@ -52,7 +52,6 @@ type JWTConfig struct {
 	Issuer        string `mapstructure:"issuer"`
 	ExpiryMinutes int    `mapstructure:"expiry_minutes"`
 }
-
 
 func Load() (*Config, error) {
 	// setDefaults()
@@ -122,7 +121,6 @@ func Load() (*Config, error) {
 	if config.JWT.ExpiryMinutes == 0 {
 		config.JWT.ExpiryMinutes = 1440 // default 24 hours
 	}
-
 
 	return &config, nil
 }

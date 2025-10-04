@@ -110,8 +110,6 @@ func (s *GCPService) GetTerraformBackendConfig() (map[string]string, error) {
 	}, nil
 }
 
-
-
 func (s *GCPService) UpdateServiceAccount(ctx context.Context, projectID, region, serviceAccountJSON string, bucketName ...string) (*models.GCPConfig, error) {
 	gcpConfig, err := gcpconfig.NewConfig(projectID, region, serviceAccountJSON, "")
 	if err != nil {
@@ -206,7 +204,3 @@ func (s *GCPService) CreateTerraformBucket(ctx context.Context, projectID, regio
 
 	return bucketName, nil
 }
-
-
-
-

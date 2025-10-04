@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/stolos-cloud/stolos-bootstrap/pkg/logger"
 	"github.com/stolos-cloud/stolos-bootstrap/pkg/oauth"
 
 	"golang.org/x/oauth2"
@@ -25,10 +26,10 @@ var GCPClientId string
 var GCPClientSecret string
 
 type Config struct {
-	ProjectID            string `json:"project_id"`
-	Region               string `json:"region"`
-	ServiceAccountJSON   string `json:"service_account_json"`
-	ServiceAccountEmail  string `json:"service_account_email"`
+	ProjectID           string `json:"project_id"`
+	Region              string `json:"region"`
+	ServiceAccountJSON  string `json:"service_account_json"`
+	ServiceAccountEmail string `json:"service_account_email"`
 }
 
 func NewConfig(projectID, region, serviceAccountJSON, serviceAccountEmail string) (*Config, error) {
@@ -58,9 +59,9 @@ func NewConfig(projectID, region, serviceAccountJSON, serviceAccountEmail string
 // ToSecret serializes
 func (c *Config) ToSecret(namespace, secretName string) *corev1.Secret {
 	data := map[string][]byte{
-		"gcp_project_id":           []byte(c.ProjectID),
-		"gcp_region":               []byte(c.Region),
-		"gcp_service_account_json": []byte(c.ServiceAccountJSON),
+		"gcp_project_id":            []byte(c.ProjectID),
+		"gcp_region":                []byte(c.Region),
+		"gcp_service_account_json":  []byte(c.ServiceAccountJSON),
 		"gcp_service_account_email": []byte(c.ServiceAccountEmail),
 	}
 
@@ -73,8 +74,8 @@ func (c *Config) ToSecret(namespace, secretName string) *corev1.Secret {
 			Name:      secretName,
 			Namespace: namespace,
 			Labels: map[string]string{
-				"app.kubernetes.io/name":       "stolos-platform",
-				"app.kubernetes.io/component":  "stolos-backend",
+				"app.kubernetes.io/name":      "stolos-platform",
+				"app.kubernetes.io/component": "stolos-backend",
 			},
 		},
 		Type: corev1.SecretTypeOpaque,
@@ -187,7 +188,6 @@ func CreateServiceAccountWithOAuth(ctx context.Context, projectID, region string
 		return nil, fmt.Errorf("failed to create service account key: %w", err)
 	}
 
-
 	// Decode base64 private key data
 	decodedKey, err := base64.StdEncoding.DecodeString(key.PrivateKeyData)
 	if err != nil {
@@ -207,8 +207,8 @@ func CreateServiceAccountWithOAuth(ctx context.Context, projectID, region string
 func assignServiceAccountRoles(rmService *resourcemanager.Service, projectID, serviceAccountEmail string) error {
 
 	roles := []string{
-		"roles/storage.admin",        // For bucket operations
-		"roles/compute.admin",        // For VM management
+		"roles/storage.admin",          // For bucket operations
+		"roles/compute.admin",          // For VM management
 		"roles/iam.serviceAccountUser", // For service account operations
 	}
 
@@ -256,7 +256,7 @@ func assignServiceAccountRoles(rmService *resourcemanager.Service, projectID, se
 	return nil
 }
 
-func AuthenticateAndSetup(oauthServer *oauth.Server, clientID, clientSecret, projectID, region string, logger oauth.Logger) (*Config, error) {
+func AuthenticateAndSetup(oauthServer *oauth.Server, clientID, clientSecret, projectID, region string, logger logger.Logger) (*Config, error) {
 	ctx := context.Background()
 
 	provider := oauth.NewGCPProvider(clientID, clientSecret)

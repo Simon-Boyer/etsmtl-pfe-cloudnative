@@ -172,7 +172,6 @@ func (s *TerraformService) initializeTerraform(workDir string) (*tfexec.Terrafor
 		return nil, fmt.Errorf("failed to get GCP config: %w", err)
 	}
 
-
 	envVars := map[string]string{
 		"GOOGLE_CREDENTIALS": gcpConfig.ServiceAccountKeyJSON,
 		"GOOGLE_PROJECT":     gcpConfig.ProjectID,
@@ -227,7 +226,6 @@ func (s *TerraformService) commitInfrastructureToRepo(workDir string) error {
 	return nil
 }
 
-
 func (s *TerraformService) DestroyInfrastructure(ctx context.Context) error {
 	// temporary directory for terraform operations
 	workDir, err := os.MkdirTemp("", "terraform-destroy-*")
@@ -257,7 +255,7 @@ func (s *TerraformService) DestroyInfrastructure(ctx context.Context) error {
 }
 
 func (s *TerraformService) GetInfrastructureStatus(ctx context.Context) (map[string]any, error) {
-	// Mock .. we could instead do 
+	// Mock .. we could instead do
 	// 1. Check terraform state
 	// 2. Return resource status and outputs
 

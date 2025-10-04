@@ -26,9 +26,9 @@ type Node struct {
 	Name         string         `json:"name" gorm:"not null;uniqueIndex"`
 	Status       NodeStatus     `json:"status" gorm:"type:varchar(50);not null;default:'pending'"`
 	Role         string         `json:"role" gorm:"not null;default:'worker'"` // worker, control-plane
-	Labels       string         `json:"labels"`                          // JSON string for labels
-	Architecture string         `json:"architecture" gorm:"not null"` // amd64, arm64
-	Provider     string         `json:"provider" gorm:"not null"`     // onprem, gcp
+	Labels       string         `json:"labels"`                                // JSON string for labels
+	Architecture string         `json:"architecture" gorm:"not null"`          // amd64, arm64
+	Provider     string         `json:"provider" gorm:"not null"`              // onprem, gcp
 	IPAddress    string         `json:"ip_address"`
 	MACAddress   string         `json:"mac_address"`
 	InstanceID   string         `json:"instance_id,omitempty"` // GCP instance ID
@@ -62,16 +62,16 @@ func (c *Cluster) BeforeCreate(tx *gorm.DB) error {
 }
 
 type GCPConfig struct {
-	ID                     uuid.UUID      `json:"id" gorm:"type:uuid;primary_key"`
-	ProjectID              string         `json:"project_id" gorm:"not null"`
-	BucketName             string         `json:"bucket_name" gorm:"not null"`
-	ServiceAccountEmail    string         `json:"service_account_email" gorm:"not null"`
-	ServiceAccountKeyJSON  string         `json:"-" gorm:"type:text"`
-	Region                 string         `json:"region" gorm:"default:'us-central1'"`
-	IsConfigured           bool           `json:"is_configured" gorm:"default:false"`
-	CreatedAt              time.Time      `json:"created_at"`
-	UpdatedAt              time.Time      `json:"updated_at"`
-	DeletedAt              gorm.DeletedAt `json:"-" gorm:"index"`
+	ID                    uuid.UUID      `json:"id" gorm:"type:uuid;primary_key"`
+	ProjectID             string         `json:"project_id" gorm:"not null"`
+	BucketName            string         `json:"bucket_name" gorm:"not null"`
+	ServiceAccountEmail   string         `json:"service_account_email" gorm:"not null"`
+	ServiceAccountKeyJSON string         `json:"-" gorm:"type:text"`
+	Region                string         `json:"region" gorm:"default:'us-central1'"`
+	IsConfigured          bool           `json:"is_configured" gorm:"default:false"`
+	CreatedAt             time.Time      `json:"created_at"`
+	UpdatedAt             time.Time      `json:"updated_at"`
+	DeletedAt             gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 func (g *GCPConfig) BeforeCreate(tx *gorm.DB) error {

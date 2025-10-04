@@ -138,6 +138,6 @@ func runMigrations(db *gorm.DB) error {
 }
 
 func Seed(db *gorm.DB) error {
-	// TODO: Add any initial data seeding 
+	// TODO: Add any initial data seeding
 	return nil
 }

@@ -66,4 +66,3 @@ func (h *Handlers) JWTService() *middleware.JWTService {
 func (h *Handlers) DB() *gorm.DB {
 	return h.db
 }
-

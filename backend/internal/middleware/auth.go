@@ -200,4 +200,3 @@ func GetClaimsFromContext(c *gin.Context) (*Claims, error) {
 
 	return claimsModel, nil
 }
-

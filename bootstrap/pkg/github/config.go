@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/stolos-cloud/stolos-bootstrap/pkg/logger"
 	"github.com/stolos-cloud/stolos-bootstrap/pkg/oauth"
 
 	"github.com/goccy/go-yaml"
@@ -35,9 +36,9 @@ func NewClient(token *oauth2.Token) *Client {
 
 // GitHubInfo contains repository setup information
 type GitHubInfo struct {
-	RepoOwner      string `json:"RepoOwner" field_label:"Github Repository Owner" field_required:"true"`
+	RepoOwner      string `json:"RepoOwner" field_label:"Github Organization Name" field_required:"true"`
 	RepoName       string `json:"RepoName" field_label:"Github Repository Name" field_required:"true"`
-	BaseDomain     string `json:"BaseDomain" field_label:"BaseDomain" field_required:"true"`
+	BaseDomain     string `json:"BaseDomain" field_label:"Base Domain (DNS)" field_required:"true"`
 	LoadBalancerIP string `json:"LoadBalancerIP" field_label:"LoadBalancer IP" field_required:"true"`
 }
 
@@ -136,7 +137,7 @@ func (c *Client) GetToken() *oauth2.Token {
 }
 
 // AuthenticateAndSetup performs OAuth authentication and repository initialization
-func AuthenticateAndSetup(oauthServer *oauth.Server, clientID, clientSecret string, info *GitHubInfo, logger oauth.Logger) (*Client, error) {
+func AuthenticateAndSetup(oauthServer *oauth.Server, clientID, clientSecret string, info *GitHubInfo, logger logger.Logger) (*Client, error) {
 	ctx := context.Background()
 
 	provider := oauth.NewGitHubProvider(clientID, clientSecret)
